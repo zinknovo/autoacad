@@ -1,0 +1,4 @@
+interface:
+  display_name: "AutoAcad"
+  short_description: "Run end-to-end academic paper workflows"
+  default_prompt: "Use AutoAcad to structure and execute this paper project."
