@@ -15,6 +15,34 @@ The package is organized as a skill bundle, but most of the content is agent-agn
 
 The current source of truth is this repository.
 
+## Why AutoAcad
+
+AutoAcad is not trying to replace upstream research platforms.
+
+It is a narrower package aimed at a different problem: making paper-oriented research workflows usable inside local agent setups without requiring the full upstream runtime.
+
+In practice, that gives it a few advantages for day-to-day use:
+
+- it is lightweight to install
+  - the package is mostly Markdown, templates, and small local scripts
+- it is easier to maintain locally
+  - pipeline rules, hard constraints, experiment discipline, and paper-writing rules live in separate files instead of one large prompt
+- it works well across multiple local agent ecosystems
+  - Codex, Claude Code, Gemini CLI, OpenCode, and other local prompt-bundle systems can all use the same package structure
+- it is easier to update incrementally
+  - upstream ideas can be reviewed, mapped, and merged without adopting an entire upstream runtime
+- it keeps stage granularity explicit
+  - users can invoke only the current stage rather than forcing a single monolithic workflow every time
+
+Relative to the upstream projects it draws from:
+
+- `AutoResearchClaw` is stronger as a full pipeline runtime and orchestration system
+- `AI-Researcher` is stronger as a larger research platform with broader system capabilities
+- `AutoAcad` is optimized for a simpler operating model
+  - a portable local skill package that is easier to install, inspect, version, and adapt
+
+That tradeoff is intentional.
+
 ## What It Contains
 
 - `SKILL.md`
