@@ -139,6 +139,11 @@ def summarize_local_autoacad(skill_dir: Path) -> list[str]:
     return notes
 
 
+def repo_display_name(summary: RepoSummary) -> str:
+    # Keep generated reports stable across local machines and CI runners.
+    return summary.name
+
+
 def build_upstreams_markdown(
     skill_dir: Path,
     auto_summary: RepoSummary,
@@ -160,7 +165,7 @@ def build_upstreams_markdown(
         "",
         "## AutoResearchClaw",
         "",
-        f"- Repo: `{auto_summary.repo_dir}`",
+        f"- Repo: `{repo_display_name(auto_summary)}`",
         f"- HEAD: `{auto_summary.head or 'missing'}`",
         f"- Tracked files: {', '.join(auto_summary.tracked_files) if auto_summary.tracked_files else 'none'}",
     ]
@@ -172,7 +177,7 @@ def build_upstreams_markdown(
         "",
         "## AI-Researcher",
         "",
-        f"- Repo: `{ai_summary.repo_dir}`",
+        f"- Repo: `{repo_display_name(ai_summary)}`",
         f"- HEAD: `{ai_summary.head or 'missing'}`",
         f"- Tracked files: {', '.join(ai_summary.tracked_files) if ai_summary.tracked_files else 'none'}",
     ]
