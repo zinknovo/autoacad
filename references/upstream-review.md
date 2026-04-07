@@ -1,103 +1,132 @@
 # AutoAcad Upstream Review
 
-Generated: 2026-04-07T21:57:17.196257+00:00
-
 This file is generated automatically from upstream context plus local AutoAcad files.
+
+Reviewed AutoResearchClaw HEAD: `5dc7fcc859a1b4ecddd871aca552d4d22517b768`
+Reviewed AI-Researcher HEAD: `f9a6f8480860c193afff600eeffe3defcee8a978`
 
 # AutoAcad vs. Upstreams Comparison Report
 
 ## Summary
 
-The local AutoAcad package maintains a well-structured, stage-gated research workflow that aligns with core principles from both upstream sources but has notable differences in implementation focus. AutoResearchClaw provides a more comprehensive autonomous pipeline with 23 stages, multi-agent subsystems, and human-in-the-loop capabilities, while AI-Researcher emphasizes reference-based ideation and codebase analysis. AutoAcad sits between them as a practical, file-based workflow package focused on reproducibility and evidence discipline.
+The local AutoAcad package shows strong alignment with upstream research automation principles from both AutoResearchClaw and AI-Researcher, but with notable differences in implementation focus. AutoAcad is structured as a **modular skill package** for Claude, emphasizing stage-gated workflows and reproducibility checks, while the upstream projects are **full autonomous research systems** with broader infrastructure.
 
-Key alignment areas: staged research process, anti-fabrication rules, experiment discipline, and paper structure guidance. Key divergence: AutoAcad lacks the autonomous execution infrastructure and multi-agent orchestration present in both upstreams.
+Key differences:
+- **AutoResearchClaw** provides a complete 23-stage pipeline with HITL co-pilot systems, multi-agent subsystems, and sandboxed execution
+- **AI-Researcher** focuses on autonomous scientific discovery with two input modes (detailed ideas vs. reference-based ideation)
+- **AutoAcad** distills these into a lightweight, skill-based approach with strict evidence discipline and paper-structure rules
 
 ## Recommended File Updates
 
-### references/pipeline.md
-**Add from AutoResearchClaw:**
-- Expand stage groups from 9 to match the 23-stage pipeline (topic_init through export_publish)
-- Include explicit loop points after experiment_run and analysis stages
-- Add gate semantics for literature_screen, experiment_design, and quality_gate
-- Reference the "PROCEED/REFINE/PIVOT" decision framework from analysis stage
+### 1. `references/pipeline.md`
+**Add HITL intervention modes** from AutoResearchClaw:
+```markdown
+## Human-in-the-Loop Modes (Optional)
+AutoAcad supports 6 intervention modes when used with co-pilot systems:
+- `full-auto`: No human intervention (default)
+- `gate-only`: Human approval required at stage gates
+- `checkpoint`: Human review at major milestones
+- `step-by-step`: Human approval per stage
+- `co-pilot`: Real-time collaboration
+- `custom`: User-defined intervention points
+```
 
-**Add from AI-Researcher:**
-- Clarify the two input modes: detailed idea description vs. reference-based ideation
-- Add preparation stage that includes codebase analysis and repository selection criteria
+**Add pipeline branching** for parallel hypothesis exploration (from AutoResearchClaw HITL):
+```markdown
+## Parallel Exploration
+When evidence suggests multiple viable directions, create pipeline branches:
+- Branch at: hypothesis_gen, experiment_design, or analysis stages
+- Track branches in `PROGRESS.md` with `branch: <name>` labels
+- Merge or prune based on comparative results
+```
 
-### references/restricts.md
-**Enhance from AutoResearchClaw prompts.default.yaml:**
-- Strengthen the "HARD TOPIC CONSTRAINT" section with explicit prohibitions:
-  - "Do NOT treat environment setup, dependency installation, or infrastructure failures as a research contribution"
-  - "Do NOT present debugging logs, system errors, or configuration issues as experimental findings"
-  - "Every section MUST connect back to the core research question"
-- Add compute budget constraints with scaling rules for different time budgets
+### 2. `references/experiment-rules.md`
+**Add complexity scoring and fallback** from AutoResearchClaw's OpenCode integration:
+```markdown
+## Code Generation Complexity Management
+- Score code complexity before generation (simple: <100 lines, medium: 100-500, complex: >500)
+- For complex implementations, consider using specialized code generation backends
+- Implement graceful fallback: if complex generation fails, simplify the approach rather than halting
+```
 
-### references/experiment-rules.md
-**Update from AutoResearchClaw:**
-- Add explicit compute budget scaling rules:
-  - "If total conditions > 100: reduce seeds to 3-5 (not 20)"
-  - "If total conditions > 500: reduce to 2-3 representative conditions per factor"
-  - Time budget thresholds for optimization steps (≤5,000 steps for <300s, ≤1,000 steps for <120s)
-- Mandate TIME_ESTIMATE printing before main loops
-- Require time guard implementation that saves partial results at 80% budget
-- Clarify sandbox package restrictions (numpy + stdlib only for certain modes)
+**Add anti-fabrication diagnostics** from AutoResearchClaw v0.3.2:
+```markdown
+## Experiment Diagnosis & Repair
+When experiments fail:
+1. Run diagnosis loop: check for NaN/Inf sources, convergence failures, memory issues
+2. Implement repair strategies: adjust learning rates, add numerical stability terms
+3. If repair fails after 3 attempts, trigger refine or pivot decision
+```
 
-### prepare/SKILL.md
-**Incorporate from AI-Researcher prepare_agent.py:**
-- Add repository selection criteria:
-  1. Stars count as popularity indicator
-  2. Recency (avoid too old repositories)
-  3. Detailed README.md for reproducibility
-  4. Clear code structure and comments
-  5. Python preference with local execution over Docker
-  6. PyTorch preference for deep learning projects
-- Include guidance for analyzing 5-8 repositories before final selection
-- Add tools for code structure analysis and file reading during preparation
+### 3. `prepare/SKILL.md`
+**Add reference-based ideation path** from AI-Researcher Level 2:
+```markdown
+## Reference-Based Preparation
+When user provides papers without specific ideas:
+1. Analyze reference papers for patterns, gaps, and combinable elements
+2. Generate novel research concepts by synthesizing across references
+3. Select 3-5 most promising directions based on feasibility and novelty
+4. Proceed with the strongest candidate while tracking alternatives
+```
 
-### survey/SKILL.md
-**Add from AutoResearchClaw:**
-- Include literature screening gate criteria
-- Emphasize DOI/arXiv ID preservation for all collected papers
-- Add thematic comparison requirements for positioning in related work
+**Add repository selection criteria** from AI-Researcher's prepare_agent:
+```markdown
+## Codebase Selection Criteria
+When choosing reference implementations:
+1. Prefer repositories with more stars (community validation)
+2. Prefer recent repositories (avoid deprecated dependencies)
+3. Prefer detailed README.md (reproducibility)
+4. Prefer clear code structure with comments (maintainability)
+5. Prefer Python implementations, especially PyTorch for DL
+6. Select 5-8 repositories maximum to avoid cognitive overload
+```
 
-### ideate/SKILL.md
-**Enhance from both upstreams:**
-- Add hypothesis generation format: rationale, measurable prediction, failure condition
-- Include both modes: detailed idea description vs. reference-based ideation
-- Emphasize falsifiability of all hypotheses
+### 4. `run/SKILL.md`
+**Add time budget scaling rules** from AutoResearchClaw prompts.default.yaml:
+```markdown
+## Compute Budget Scaling (Mandatory)
+- If total conditions > 100: reduce seeds to 3-5 (not 20)
+- If total conditions > 500: reduce to 2-3 representative conditions per factor
+- If time_budget < 300s: limit total optimization steps to ≤5,000 per run
+- If time_budget < 120s: limit total optimization steps to ≤1,000 per run
+- Always print intermediate results so partial data is captured on timeout
+```
 
-### run/SKILL.md
-**Update from AutoResearchClaw:**
-- Add anti-fabrication system references
-- Include experiment diagnosis and repair loop
-- Reference convergence checking requirements
-- Add result saving with complete metadata (seeds, configs, hardware, runtime, version markers)
-
-### draft/SKILL.md
-**Enhance from AutoResearchClaw:**
-- Add paper quality audit references (AI-slop detection, 7-dim review scoring)
-- Include NeurIPS checklist consideration
-- Emphasize claim-evidence consistency checking
+### 5. `export/SKILL.md`
+**Add publication formatting standards** from AutoResearchClaw export_publish stage:
+```markdown
+## Final Formatting Requirements
+- Convert revised paper into clean markdown for publication export
+- Preserve all citations, figures, and mathematical notation
+- Ensure consistent heading hierarchy and formatting
+- Verify all cross-references (figures, tables, sections) are correct
+- Include metadata: title, authors, abstract, keywords
+```
 
 ## No-Change Areas
 
-### references/paper-structure.md
-The existing structure with word budgets, section purposes, and drafting order is comprehensive and aligns well with both upstreams. The target word counts and section purposes are more detailed than what's provided in the upstream snippets.
+### 1. `references/restricts.md`
+**No changes needed** - AutoAcad's constraints are stricter and more focused than upstreams:
+- Topic lock is more explicit than AutoResearchClaw's topic_constraint
+- Evidence discipline aligns with both upstreams but is more concisely stated
+- Anti-fabrication rules are comprehensive and appropriate for skill-based use
 
-### analyze/SKILL.md
-The existing focus on metrics interpretation, proceed/refine/pivot decisions, and evidence gap identification is sufficient and aligns with both upstream analysis approaches.
+### 2. `references/paper-structure.md`
+**No changes needed** - AutoAcad's structure is more detailed and practical:
+- Word budgets per section provide concrete guidance missing in upstreams
+- Drafting order is well-optimized for research writing
+- Core paper rules (Figure 1, ablations, baseline tuning) are essential and correct
 
-### review/SKILL.md
-The stress-testing of methodology-evidence consistency and reviewer objection simulation is adequately covered and doesn't require updates from the provided upstream content.
+### 3. Stage-specific SKILL.md files (`survey/`, `ideate/`, `plan/`, `analyze/`, `draft/`, `review/`)
+**No structural changes needed** - These already capture the essential workflows:
+- Stage purposes are clearly defined and match upstream intentions
+- Operating rules integrate well with the reference documents
+- The modular approach works better for skill-based usage than the full pipeline implementations
 
-### export/SKILL.md
-The final package preparation, citations, archive, and export checks are well-defined and don't need updates from the limited upstream export_publish prompt.
+### 4. Core package structure
+**No changes needed** - AutoAcad's skill-based approach is appropriate:
+- Bundled resources (templates, scripts, references) are comprehensive
+- The stage-gated workflow with PROGRESS.md tracking is effective
+- The skill decomposition allows targeted use without requiring full pipeline execution
 
-### plan/SKILL.md
-The experiment design, baselines, ablations, and project structure planning are adequately covered in the existing skill and align with AutoResearchClaw's experiment_design stage.
-
-### The core SKILL.md package root
-The routing table, operating rules, and bundled resources structure is effective and provides clear stage-based navigation. The layered approach (subskills for stages, root for end-to-end) is a good design that doesn't need fundamental changes.
-
-**Note**: The upstreams show extensive infrastructure (Docker sandboxes, multi-agent systems, CLI tools, HITL interfaces) that AutoAcad deliberately omits as it focuses on the workflow layer rather than execution infrastructure. This is a design choice rather than a gap.
+**Rationale**: AutoAcad successfully distills the complex upstream systems into a usable skill package. The recommended updates add valuable features from upstreams without compromising AutoAcad's focused, evidence-based approach. The no-change areas represent strengths where AutoAcad's implementation is already superior or appropriately simplified for its use case.
