@@ -144,6 +144,33 @@ def repo_display_name(summary: RepoSummary) -> str:
     return summary.name
 
 
+def extract_recorded_head(markdown: str, section: str) -> str | None:
+    section_match = re.search(rf"## {re.escape(section)}\n(.*?)(?:\n## |\Z)", markdown, re.S)
+    if not section_match:
+        return None
+    head_match = re.search(r"- HEAD: `([^`]+)`", section_match.group(1))
+    if not head_match:
+        return None
+    head = head_match.group(1)
+    return None if head == "missing" else head
+
+
+def should_refresh_review(existing_upstreams_md: str, auto_head: str | None, ai_head: str | None) -> bool:
+    recorded_auto_head = extract_recorded_head(existing_upstreams_md, "AutoResearchClaw")
+    recorded_ai_head = extract_recorded_head(existing_upstreams_md, "AI-Researcher")
+    return recorded_auto_head != auto_head or recorded_ai_head != ai_head
+
+
+def build_review_markdown(review_text: str, auto_head: str | None, ai_head: str | None) -> str:
+    return (
+        "# AutoAcad Upstream Review\n\n"
+        "This file is generated automatically from upstream context plus local AutoAcad files.\n\n"
+        f"Reviewed AutoResearchClaw HEAD: `{auto_head or 'missing'}`\n"
+        f"Reviewed AI-Researcher HEAD: `{ai_head or 'missing'}`\n\n"
+        f"{review_text.rstrip()}\n"
+    )
+
+
 def build_upstreams_markdown(
     skill_dir: Path,
     auto_summary: RepoSummary,
@@ -308,6 +335,7 @@ def main() -> int:
     refs_dir = skill_dir / "references"
     snapshots_dir = refs_dir / "upstream-snapshots"
     generated_at = datetime.now(timezone.utc).isoformat()
+    existing_upstreams_md = read_text_if_exists(refs_dir / "upstreams.md")
 
     auto_repo = repos_dir / AUTORESEARCH_REPO_NAME
     ai_repo = repos_dir / AI_RESEARCHER_REPO_NAME
@@ -333,25 +361,27 @@ def main() -> int:
     upstreams_md = build_upstreams_markdown(skill_dir, auto_summary, ai_summary)
     write_if_changed(refs_dir / "upstreams.md", upstreams_md)
 
-    review_path: str | None = None
-    if args.use_llm_if_configured:
+    review_file = refs_dir / "upstream-review.md"
+    review_path: str | None = str(review_file) if review_file.exists() else None
+    review_refreshed = False
+    refresh_review = (
+        not review_file.exists()
+        or should_refresh_review(existing_upstreams_md, auto_summary.head, ai_summary.head)
+    )
+    if args.use_llm_if_configured and refresh_review:
         review_text = llm_review(skill_dir, auto_repo, ai_repo)
         if review_text:
-            review_body = (
-                "# AutoAcad Upstream Review\n\n"
-                f"Generated: {generated_at}\n\n"
-                "This file is generated automatically from upstream context plus local AutoAcad files.\n\n"
-                f"{review_text.rstrip()}\n"
-            )
-            review_file = refs_dir / "upstream-review.md"
+            review_body = build_review_markdown(review_text, auto_summary.head, ai_summary.head)
             write_if_changed(review_file, review_body)
             review_path = str(review_file)
+            review_refreshed = True
 
     print(json.dumps(
         {
             "generated_at": generated_at,
             "auto_research_claw_head": auto_summary.head,
             "ai_researcher_head": ai_summary.head,
+            "review_refreshed": review_refreshed,
             "upstreams_md": str(refs_dir / "upstreams.md"),
             "upstream_review_md": review_path,
         },
