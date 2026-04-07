@@ -94,7 +94,7 @@ jobs:
             git add -f references/upstream-review.md
           fi
           git commit -m "chore: refresh autoacad upstream state"
-          git push --force-with-lease origin "$BRANCH_NAME"
+          git push --force origin "$BRANCH_NAME"
 
           if gh pr view "$BRANCH_NAME" --json number >/dev/null 2>&1; then
             gh pr edit "$BRANCH_NAME" \
