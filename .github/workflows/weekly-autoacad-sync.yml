@@ -91,7 +91,7 @@ jobs:
           git checkout -B "$BRANCH_NAME"
           git add references/upstreams.md references/upstream-snapshots
           if [ -f references/upstream-review.md ]; then
-            git add references/upstream-review.md
+            git add -f references/upstream-review.md
           fi
           git commit -m "chore: refresh autoacad upstream state"
           git push --force-with-lease origin "$BRANCH_NAME"
