@@ -19,9 +19,9 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     env:
-      REPOS_DIR: ${{ runner.temp }}/autoacad-upstreams
-      OPENAI_API_BASE: https://api.deepseek.com
-      OPENAI_MODEL_NAME: deepseek-chat
+      REPOS_DIR: /tmp/autoacad-upstreams
+      OPENAI_API_BASE: ${{ vars.OPENAI_API_BASE }}
+      OPENAI_MODEL_NAME: ${{ vars.OPENAI_MODEL_NAME }}
       GH_TOKEN: ${{ github.token }}
 
     steps:
@@ -58,6 +58,7 @@ jobs:
       - name: Clone upstream repos
         if: steps.window.outputs.run == 'true'
         run: |
+          rm -rf "$REPOS_DIR"
           mkdir -p "$REPOS_DIR"
           git clone --depth 1 https://github.com/aiming-lab/AutoResearchClaw.git "$REPOS_DIR/AutoResearchClaw"
           git clone --depth 1 https://github.com/HKUDS/AI-Researcher.git "$REPOS_DIR/AI-Researcher"
