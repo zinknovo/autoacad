@@ -32,6 +32,11 @@ AI_RESEARCHER_FILES = [
     "research_agent/inno/agents/inno_agent/exp_analyser.py",
 ]
 
+GENERATED_REFERENCE_FILES = {
+    "upstream-review.md",
+    "upstreams.md",
+}
+
 
 @dataclass
 class RepoSummary:
@@ -129,7 +134,11 @@ def parse_ai_researcher_readme(text: str) -> list[str]:
 
 def summarize_local_autoacad(skill_dir: Path) -> list[str]:
     subskills = sorted(p.name for p in skill_dir.iterdir() if p.is_dir() and (p / "SKILL.md").exists())
-    refs = sorted(p.name for p in (skill_dir / "references").glob("*.md"))
+    refs = sorted(
+        p.name
+        for p in (skill_dir / "references").glob("*.md")
+        if p.name not in GENERATED_REFERENCE_FILES
+    )
     scripts = sorted(p.name for p in (skill_dir / "scripts").glob("*.py"))
     notes = [
         f"Local subskills: {', '.join(subskills)}.",
@@ -169,6 +178,12 @@ def build_review_markdown(review_text: str, auto_head: str | None, ai_head: str 
         f"Reviewed AI-Researcher HEAD: `{ai_head or 'missing'}`\n\n"
         f"{review_text.rstrip()}\n"
     )
+
+
+def review_has_current_heads(review_markdown: str, auto_head: str | None, ai_head: str | None) -> bool:
+    expected_auto = f"Reviewed AutoResearchClaw HEAD: `{auto_head or 'missing'}`"
+    expected_ai = f"Reviewed AI-Researcher HEAD: `{ai_head or 'missing'}`"
+    return expected_auto in review_markdown and expected_ai in review_markdown
 
 
 def build_upstreams_markdown(
@@ -364,9 +379,11 @@ def main() -> int:
     review_file = refs_dir / "upstream-review.md"
     review_path: str | None = str(review_file) if review_file.exists() else None
     review_refreshed = False
+    existing_review_md = read_text_if_exists(review_file)
     refresh_review = (
         not review_file.exists()
         or should_refresh_review(existing_upstreams_md, auto_summary.head, ai_summary.head)
+        or not review_has_current_heads(existing_review_md, auto_summary.head, ai_summary.head)
     )
     if args.use_llm_if_configured and refresh_review:
         review_text = llm_review(skill_dir, auto_repo, ai_repo)

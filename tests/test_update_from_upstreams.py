@@ -78,6 +78,32 @@ class ReviewRefreshTests(unittest.TestCase):
         self.assertIn("Reviewed AI-Researcher HEAD: `def456`", markdown)
         self.assertIn("Stable output.", markdown)
 
+    def test_detects_legacy_review_format_without_head_markers(self) -> None:
+        legacy = "# AutoAcad Upstream Review\n\nGenerated: 2026-04-07T00:00:00Z\n"
+
+        self.assertFalse(MODULE.review_has_current_heads(legacy, "abc123", "def456"))
+
+
+class LocalSummaryTests(unittest.TestCase):
+    def test_excludes_generated_upstream_reports_from_local_references(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            skill_dir = Path(tmp)
+            refs_dir = skill_dir / "references"
+            refs_dir.mkdir()
+            (skill_dir / "scripts").mkdir()
+            (skill_dir / "analyze").mkdir()
+            (skill_dir / "analyze" / "SKILL.md").write_text("# analyze\n")
+            (refs_dir / "pipeline.md").write_text("# pipeline\n")
+            (refs_dir / "upstreams.md").write_text("# generated\n")
+            (refs_dir / "upstream-review.md").write_text("# generated review\n")
+
+            notes = MODULE.summarize_local_autoacad(skill_dir)
+            joined = "\n".join(notes)
+
+            self.assertIn("pipeline.md", joined)
+            self.assertNotIn("upstreams.md", joined)
+            self.assertNotIn("upstream-review.md", joined)
+
 
 if __name__ == "__main__":
     unittest.main()
