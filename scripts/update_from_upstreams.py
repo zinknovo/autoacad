@@ -7,11 +7,20 @@ import argparse
 import json
 import os
 import re
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 from urllib import error, request
+
+
+# Auto-apply guardrails: LLM may modify .md files anywhere in the skill EXCEPT:
+AUTO_APPLY_FORBIDDEN_TOP_DIRS = {"scripts", "agents", "tests", ".git", ".github"}
+AUTO_APPLY_FORBIDDEN_EXACT = {
+    "references/upstreams.md",        # script-generated
+    "references/upstream-review.md",  # script-generated
+}
 
 
 AUTORESEARCH_REPO_NAME = "AutoResearchClaw"
@@ -334,6 +343,173 @@ def llm_review(skill_dir: Path, auto_repo: Path, ai_repo: Path) -> str | None:
     return None
 
 
+def path_is_allowed_for_auto_apply(rel_path: str) -> bool:
+    p = Path(rel_path)
+    if p.is_absolute() or ".." in p.parts:
+        return False
+    if not rel_path.endswith(".md"):
+        return False
+    parts = p.parts
+    if not parts:
+        return False
+    if parts[0] in AUTO_APPLY_FORBIDDEN_TOP_DIRS:
+        return False
+    if parts[0] == "references" and len(parts) > 1 and parts[1] == "upstream-snapshots":
+        return False
+    if rel_path in AUTO_APPLY_FORBIDDEN_EXACT:
+        return False
+    return True
+
+
+def collect_current_md_files(skill_dir: Path) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for path in sorted(skill_dir.rglob("*.md")):
+        rel = path.relative_to(skill_dir).as_posix()
+        if not path_is_allowed_for_auto_apply(rel):
+            continue
+        out[rel] = path.read_text()
+    return out
+
+
+def llm_auto_apply_plan(
+    skill_dir: Path,
+    auto_repo: Path,
+    ai_repo: Path,
+    auto_head: str | None,
+    ai_head: str | None,
+) -> dict | None:
+    api_base = os.environ.get("OPENAI_API_BASE")
+    api_key = os.environ.get("OPENAI_API_KEY")
+    model = os.environ.get("OPENAI_MODEL_NAME") or "gpt-5"
+    if not api_base or not api_key:
+        return None
+
+    current_files = collect_current_md_files(skill_dir)
+    upstream_context = extract_relevant_upstream_context(auto_repo, ai_repo)
+
+    system_prompt = (
+        "You are the automated maintainer of AutoAcad, a Claude skill package for academic research workflows. "
+        "Each week you compare AutoAcad against two upstreams (AutoResearchClaw, AI-Researcher) and update it. "
+        "Your output is applied WITHOUT human review, so be precise and conservative.\n\n"
+        "You may create, rewrite, or delete .md files inside AutoAcad. "
+        "FORBIDDEN paths (attempting to modify will abort the whole run): "
+        "anything under scripts/, agents/, tests/, .github/, references/upstream-snapshots/; "
+        "and references/upstreams.md, references/upstream-review.md (script-owned). "
+        "All paths must be relative, end in .md, and not contain '..'.\n\n"
+        "Return STRICT JSON (no markdown fences, no prose outside JSON):\n"
+        "{\n"
+        '  "summary": "one paragraph describing this week\'s changes",\n'
+        '  "changes": [\n'
+        '    {"path":"references/foo.md","action":"rewrite","content":"full new content","rationale":"why"},\n'
+        '    {"path":"references/bar.md","action":"delete","rationale":"why"},\n'
+        '    {"path":"references/new.md","action":"create","content":"full content","rationale":"why"}\n'
+        "  ]\n"
+        "}\n\n"
+        "Rules:\n"
+        "- action ∈ {create, rewrite, delete}\n"
+        "- create: path must not currently exist; content required\n"
+        "- rewrite: path must currently exist; content is full replacement (not a diff)\n"
+        "- delete: path must currently exist; no content field\n"
+        "- If nothing needs changing this week: return {\"summary\": \"...\", \"changes\": []}\n"
+        "- Preserve AutoAcad's voice: terse operational rules, not prose explanations\n"
+        "- Do not restructure the whole package in one run; prefer targeted edits\n"
+        "- Do not rewrite subskill SKILL.md files unless upstream clearly redefined stage boundaries\n"
+    )
+
+    user_payload = {
+        "autoresearchclaw_head": auto_head,
+        "ai_researcher_head": ai_head,
+        "current_autoacad_files": current_files,
+        "upstream_context": upstream_context,
+    }
+    body = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+        ],
+        "response_format": {"type": "json_object"},
+    }
+    payload = json.dumps(body).encode("utf-8")
+    base = api_base.rstrip("/")
+    req = request.Request(
+        f"{base}/chat/completions",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+    try:
+        with request.urlopen(req, timeout=300) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except error.URLError as exc:
+        print(f"[auto-apply] LLM call failed: {exc}", file=sys.stderr)
+        return None
+
+    choices = data.get("choices") or []
+    if not choices:
+        return None
+    content = (choices[0].get("message") or {}).get("content")
+    if not isinstance(content, str):
+        return None
+    try:
+        parsed = json.loads(content)
+    except json.JSONDecodeError as exc:
+        print(f"[auto-apply] JSON parse failed: {exc}\nRaw: {content[:500]}", file=sys.stderr)
+        return None
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("changes"), list):
+        print("[auto-apply] missing 'changes' array", file=sys.stderr)
+        return None
+    return parsed
+
+
+def apply_auto_changes(skill_dir: Path, changes: list[dict]) -> list[dict]:
+    """Validate all changes, then apply atomically. Raises ValueError on any invalid change."""
+    validated: list[tuple[Path, str, dict]] = []
+    for i, c in enumerate(changes):
+        if not isinstance(c, dict):
+            raise ValueError(f"change[{i}] is not an object")
+        path = c.get("path")
+        action = c.get("action")
+        if not isinstance(path, str) or not isinstance(action, str):
+            raise ValueError(f"change[{i}] missing path/action")
+        if not path_is_allowed_for_auto_apply(path):
+            raise ValueError(f"change[{i}] path not allowed: {path}")
+        if action not in ("create", "rewrite", "delete"):
+            raise ValueError(f"change[{i}] bad action: {action}")
+        abs_path = (skill_dir / path).resolve()
+        try:
+            abs_path.relative_to(skill_dir.resolve())
+        except ValueError:
+            raise ValueError(f"change[{i}] path escapes skill dir: {path}")
+        if action == "create":
+            if abs_path.exists():
+                raise ValueError(f"change[{i}] create target already exists: {path}")
+            if not isinstance(c.get("content"), str):
+                raise ValueError(f"change[{i}] create requires content")
+        elif action == "rewrite":
+            if not abs_path.exists():
+                raise ValueError(f"change[{i}] rewrite target missing: {path}")
+            if not isinstance(c.get("content"), str):
+                raise ValueError(f"change[{i}] rewrite requires content")
+        elif action == "delete":
+            if not abs_path.exists():
+                raise ValueError(f"change[{i}] delete target missing: {path}")
+        validated.append((abs_path, action, c))
+
+    applied: list[dict] = []
+    for abs_path, action, c in validated:
+        if action in ("create", "rewrite"):
+            abs_path.parent.mkdir(parents=True, exist_ok=True)
+            abs_path.write_text(c["content"])
+        elif action == "delete":
+            abs_path.unlink()
+        applied.append({"path": c["path"], "action": action})
+    return applied
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Refresh AutoAcad upstream snapshots.")
     parser.add_argument("--repos-dir", required=True, help="Directory containing cloned upstream repos")
@@ -342,6 +518,12 @@ def main() -> int:
         "--use-llm-if-configured",
         action="store_true",
         help="Generate an LLM review report when OPENAI_API_BASE and OPENAI_API_KEY are available",
+    )
+    parser.add_argument(
+        "--auto-apply",
+        action="store_true",
+        help="In addition to generating a review, ask the LLM for structured file changes and apply them. "
+        "Requires OPENAI_API_BASE and OPENAI_API_KEY. Applies atomically; any invalid change aborts the batch.",
     )
     args = parser.parse_args()
 
@@ -393,6 +575,31 @@ def main() -> int:
             review_path = str(review_file)
             review_refreshed = True
 
+    auto_apply_result: dict = {"requested": False}
+    if args.auto_apply:
+        auto_apply_result = {"requested": True, "applied": False}
+        plan = llm_auto_apply_plan(
+            skill_dir, auto_repo, ai_repo, auto_summary.head, ai_summary.head
+        )
+        if plan is None:
+            auto_apply_result["reason"] = "llm unavailable or returned invalid plan"
+        else:
+            try:
+                applied = apply_auto_changes(skill_dir, plan.get("changes", []))
+                auto_apply_result = {
+                    "requested": True,
+                    "applied": True,
+                    "summary": plan.get("summary", ""),
+                    "changes": applied,
+                }
+            except ValueError as exc:
+                auto_apply_result = {
+                    "requested": True,
+                    "applied": False,
+                    "reason": f"invalid plan: {exc}",
+                    "summary": plan.get("summary", ""),
+                }
+
     print(json.dumps(
         {
             "generated_at": generated_at,
@@ -401,6 +608,7 @@ def main() -> int:
             "review_refreshed": review_refreshed,
             "upstreams_md": str(refs_dir / "upstreams.md"),
             "upstream_review_md": review_path,
+            "auto_apply": auto_apply_result,
         },
         indent=2,
         sort_keys=True,
