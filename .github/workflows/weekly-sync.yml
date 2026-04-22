@@ -46,8 +46,8 @@ jobs:
             --skill-dir . \
             --use-llm-if-configured \
             --auto-apply \
-            | tee sync-result.json
-          echo "result=$(cat sync-result.json | tr -d '\n' | head -c 2000)" >> "$GITHUB_OUTPUT"
+            | tee /tmp/sync-result.json
+          echo "result=$(cat /tmp/sync-result.json | tr -d '\n' | head -c 2000)" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push if changed
         id: commit
@@ -58,7 +58,7 @@ jobs:
             exit 0
           fi
           git add -A
-          SUMMARY=$(python3 -c "import json,sys; d=json.load(open('sync-result.json')); aa=d.get('auto_apply') or {}; print(aa.get('summary') or '')")
+          SUMMARY=$(python3 -c "import json,sys; d=json.load(open('/tmp/sync-result.json')); aa=d.get('auto_apply') or {}; print(aa.get('summary') or '')")
           TITLE="chore: weekly auto-sync $(date -u +%Y-%m-%d)"
           if [ -n "$SUMMARY" ]; then
             git commit -m "$TITLE" -m "$SUMMARY"
