@@ -6,6 +6,17 @@
 - Print `TIME_ESTIMATE: <seconds>` or equivalent before scaling.
 - If total conditions explode, reduce seeds or shrink the grid rather than pretending everything ran.
 - Add a time guard that saves partial results before budget exhaustion.
+- **Compute Budget Constraint:**
+  - Total execution time limit: respect user-specified time budget.
+  - Design experiments that complete within this budget.
+  - **Scaling Rules (mandatory):**
+    - If total conditions > 100: reduce seeds to 3-5 (not 20).
+    - If total conditions > 500: reduce to 2-3 representative conditions per factor.
+    - If time_budget < 300s: limit total optimization steps to ≤5,000 per run.
+    - If time_budget < 120s: limit total optimization steps to ≤1,000 per run.
+    - Always print intermediate results so partial data is captured on timeout.
+  - **Mandatory:** print a "TIME_ESTIMATE: Xs" line before the main loop, estimating total runtime based on a small pilot (run 1 condition, extrapolate).
+  - **Mandatory:** implement a time guard — check elapsed time periodically and stop gracefully if approaching 80% of budget, saving all results collected so far.
 
 ## Numerical Discipline
 
