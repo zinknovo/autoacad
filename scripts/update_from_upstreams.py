@@ -280,6 +280,17 @@ def extract_relevant_upstream_context(auto_repo: Path, ai_repo: Path) -> str:
     return "\n\n".join(parts)
 
 
+def maybe_add_deepseek_options(body: dict, api_base: str, model: str) -> None:
+    if "api.deepseek.com" not in api_base or not model.startswith("deepseek-v4"):
+        return
+    thinking_type = (
+        os.environ.get("OPENAI_THINKING_TYPE")
+        or os.environ.get("LLM_THINKING_TYPE")
+        or "disabled"
+    )
+    body["thinking"] = {"type": thinking_type}
+
+
 def llm_review(skill_dir: Path, auto_repo: Path, ai_repo: Path) -> str | None:
     api_base = os.environ.get("OPENAI_API_BASE")
     api_key = os.environ.get("OPENAI_API_KEY")
@@ -311,6 +322,7 @@ def llm_review(skill_dir: Path, auto_repo: Path, ai_repo: Path) -> str | None:
             {"role": "user", "content": user_text},
         ],
     }
+    maybe_add_deepseek_options(body, api_base, model)
     payload = json.dumps(body).encode("utf-8")
     base = api_base.rstrip("/")
     req = request.Request(
@@ -430,6 +442,7 @@ def llm_auto_apply_plan(
         ],
         "response_format": {"type": "json_object"},
     }
+    maybe_add_deepseek_options(body, api_base, model)
     payload = json.dumps(body).encode("utf-8")
     base = api_base.rstrip("/")
     req = request.Request(

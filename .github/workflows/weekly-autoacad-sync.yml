@@ -22,6 +22,7 @@ jobs:
       REPOS_DIR: /tmp/autoacad-upstreams
       OPENAI_API_BASE: ${{ vars.OPENAI_API_BASE }}
       OPENAI_MODEL_NAME: ${{ vars.OPENAI_MODEL_NAME }}
+      OPENAI_THINKING_TYPE: ${{ vars.OPENAI_THINKING_TYPE }}
       GH_TOKEN: ${{ github.token }}
 
     steps:

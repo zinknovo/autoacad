@@ -37,9 +37,10 @@ jobs:
       - name: Run upstream sync + LLM auto-apply
         id: sync
         env:
-          OPENAI_API_BASE: https://api.deepseek.com/v1
+          OPENAI_API_BASE: https://api.deepseek.com
           OPENAI_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          OPENAI_MODEL_NAME: deepseek-chat
+          OPENAI_MODEL_NAME: deepseek-v4-flash
+          OPENAI_THINKING_TYPE: disabled
         run: |
           python3 scripts/update_from_upstreams.py \
             --repos-dir /tmp/repos \
