@@ -52,3 +52,9 @@ Use the narrowest subskill that matches the current stage. Use the package root 
 - `scripts/check_stage_outputs.py`: verify required folders and stage artifacts exist.
 - `scripts/check_results_vs_claims.py`: compare results JSON against draft text to catch unsupported numeric claims.
 - `scripts/update_from_upstreams.py`: refresh upstream snapshots and generate AutoAcad update reports.
+
+## Compute Budget Rules
+
+- Respect user-specified time budget.
+- Scale experiment conditions according to budget constraints (see `references/experiment-rules.md`).
+- Print time estimate and implement a time guard for all experiments.
