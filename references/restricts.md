@@ -33,3 +33,18 @@
 - Keep the core novelty to 1-2 ideas.
 - Use limitations to narrow claims rather than hide risk.
 - Prefer precise negative statements over vague optimism when evidence is weak.
+
+## NumPy 2.x Compatibility
+
+- Use `np.trapezoid` instead of `np.trapz`.
+- Use `scipy.special.erfinv` instead of `np.erfinv`.
+- Use Python built-in scalar types instead of removed NumPy aliases.
+- Use `math` instead of `np.math`.
+
+## Code Generation Rules
+
+- Implement REAL algorithms with REAL objective functions and REAL update rules.
+- Use REAL convergence checks (stop when objective change < 1e-8 for N consecutive iterations, not fixed loops).
+- Save structured outputs as `results.json` with deterministic seeds.
+- Prohibited: `random.uniform()` loops pretending to be results, hardcoded metric values, dummy convergence_rate constants.
+- Mandatory time guard: save partial results before budget exhaustion.

@@ -25,7 +25,7 @@
 - When NaN or Inf appears, identify the source: learning rate, normalization, zero division, overflow, unstable log, and so on.
 - Do not hide instability with blanket `try/except`, `nan_to_num`, or silent clipping unless that is the actual documented method.
 
-## NumPy Compatibility Notes
+## NumPy 2.x Compatibility Notes
 
 - Use `np.trapezoid` instead of `np.trapz`.
 - Use `scipy.special.erfinv` instead of `np.erfinv`.
@@ -36,3 +36,11 @@
 
 - Save machine-readable outputs in `results/`.
 - Keep enough metadata to reproduce the final table: seeds, configs, hardware, runtime, commit or version marker if available.
+
+## Code Anti-Patterns (for experiment code)
+
+- Do NOT generate random numbers and pretend they are experiment results.
+- Do NOT use `random.uniform()` to simulate a decreasing loss curve.
+- Do NOT hardcode metric values or use trivial arithmetic as metrics.
+- Do NOT run a fixed number of iterations without any convergence check.
+- Do NOT implement convergence_rate or similar metrics as dummy return values.
