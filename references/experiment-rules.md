@@ -44,3 +44,11 @@
 - Do NOT hardcode metric values or use trivial arithmetic as metrics.
 - Do NOT run a fixed number of iterations without any convergence check.
 - Do NOT implement convergence_rate or similar metrics as dummy return values.
+
+## Domain-Specific Scaling Patterns
+
+- For ML experiments (default): follow the budget-scaling rules above; use numpy/stdlib for rapid prototyping before framework-specific implementation.
+- For high-energy physics: leverage domain executors (ColliderAgent, MadGraph5, Delphes) for simulation-based experiments; budget scaling applies to simulation steps.
+- For biology: use COBRApy for genome-scale metabolic modelling; scale reaction/enzyme conditions rather than trial seeds.
+- For statistics: use simulation-study patterns; scale by number of Monte Carlo replicates, reducing seeds when budget is tight.
+- For other domains (chemistry, materials): use generic Docker executor with domain-specific images; budget scaling is mandatory.

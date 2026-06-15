@@ -19,7 +19,7 @@ Use this stage to establish the paper project's ground truth before any literatu
 6. Write the first stage plan and the initial `PROGRESS.md` entry before moving on.
 7. **For reference codebase selection (if applicable):**
    - Review searching results and repositories for relevance to innovative ideas.
-   - **Selection criteria (from AI-Researcher):**
+   - **Selection criteria:**
      - Repositories with more stars are more recommended.
      - Repositories created more recently are more recommended; too old repositories are not recommended.
      - More detailed `README.md` file means more readable codebase and more reproducible, so more recommended.
