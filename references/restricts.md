@@ -48,3 +48,5 @@
 - Save structured outputs as `results.json` with deterministic seeds.
 - Prohibited: `random.uniform()` loops pretending to be results, hardcoded metric values, dummy convergence_rate constants.
 - Mandatory time guard: save partial results before budget exhaustion.
+- FORBIDDEN: subprocess, os.system, eval, exec, shutil, socket.
+- If you report convergence_rate, define it as iterations_to_convergence / max_iterations — it MUST differ between algorithms.

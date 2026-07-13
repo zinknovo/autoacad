@@ -9,6 +9,7 @@
 - **Compute Budget Constraint:**
   - Total execution time limit: respect user-specified time budget.
   - Design experiments that complete within this budget.
+  - Estimate: a simple numpy loop runs ~10M iterations/sec; a nested loop over conditions runs proportionally slower.
   - **Scaling Rules (mandatory):**
     - If total conditions > 100: reduce seeds to 3-5 (not 20).
     - If total conditions > 500: reduce to 2-3 representative conditions per factor.
