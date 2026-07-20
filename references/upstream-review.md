@@ -2,67 +2,100 @@
 
 This file is generated automatically from upstream context plus local AutoAcad files.
 
-Reviewed AutoResearchClaw HEAD: `a72c2679adab22a66b86d304b7fe79a78ea4e8e3`
+Reviewed AutoResearchClaw HEAD: `e2e23c93b4943fd21cc531deb09850d8fda55357`
 Reviewed AI-Researcher HEAD: `f9a6f8480860c193afff600eeffe3defcee8a978`
-
-# AutoAcad Package Update Analysis
 
 ## Summary
 
-The upstream packages (AutoResearchClaw and AI-Researcher) have evolved significantly beyond AutoAcad's current state. Key differences include:
+The upstream systems (AutoResearchClaw and AI-Researcher) have evolved in several important ways that your local AutoAcad package should track. AutoResearchClaw v0.5.0 introduces multi-domain experiment agents (HEP, biology, statistics) and the ARC-Bench benchmark (55 topics), while AI-Researcher adds a reference-codebase-driven preparation phase and automated algorithm validation/refinement. However, AutoAcad already has strong scaffolding for these concepts. The updates needed are incremental—primarily adding domain-specific executor routing to `experiment-rules.md` and aligning `pipeline.md` with the new upstream stage structures—not a full rewrite.
 
-- **AutoResearchClaw v0.5.0** introduces multi-domain experiment agents (HEP, biology, statistics), a structured benchmark (ARC-Bench with 55 topics), human-in-the-loop co-pilot modes, and anti-fabrication verification systems.
-- **AI-Researcher** provides a reference-based ideation system with automated GitHub repository analysis and codebase selection for implementation.
-- AutoAcad currently lacks: domain-specific executors, structured benchmark integration, HITL co-pilot modes, and reference codebase harvesting capabilities.
+---
 
 ## Recommended File Updates
 
-### `references/pipeline.md`
-- **Add multi-domain stage routing:** Insert stage group annotations for domain-specific executors (HEP, biology, statistics, chemistry) alongside the existing ML-default pipeline.
-- **Add HITL gate semantics:** Include `human_review` and `co-pilot_approval` as optional gate checkpoints after `experiment_design` and `quality_gate`.
-- **Add reference-harvesting stage:** Insert a `prepare` stage (matching AI-Researcher's pattern) between Definition and Literature groups for collecting reference codebases from GitHub.
+### references/experiment-rules.md
 
-### `references/restricts.md`
-- **Add anti-fabrication verification system:** Add rule: "Run `check_results_vs_claims.py` (or equivalent) before any paper text claims a numeric result. Do not state experimental findings that cannot be traced to saved `results.json` files."
-- **Add reference codebase discipline:** Add rule: "When using reference codebases, document git commit hash, repository URL, and license. Do not incorporate code without attribution or without verifying compatibility with the project's license."
+**Add a new top-level section before "Code Anti-Patterns":**
 
-### `references/experiment-rules.md`
-- **Add domain-specific scaling patterns for biology (COBRApy) and statistics (simulation studies):** These already exist in the current file but should be annotated with concrete budget-scaling examples (e.g., "For COBRApy: scale reaction/enzyme conditions rather than trial seeds" — already present, but add "Limit to 5 reaction perturbations per budget under 300s").
-- **Add reference codebase cloning guidance:** Add rule: "When using reference codebases from GitHub, clone only the minimal subset needed (no full dataset downloads). Budget the clone time into the pilot estimate."
+```markdown
+## Domain-Specific Scaling Patterns
 
-### `prepare/SKILL.md`
-- **Significantly expand:** This file is essentially absent from the upstream comparison. Add AI-Researcher-style reference-harvesting workflow:
-  - GitHub search strategy for relevant repositories
-  - `gen_code_tree_structure`-equivalent for repository analysis
-  - README evaluation criteria (stars, recency, documentation quality, framework preference)
-  - Reference selection with `case_resolved`-equivalent output
-  - Integration with `scripts/init_paper_project.py` to incorporate reference codebases
+- For ML experiments (default): follow the budget-scaling rules above; use numpy/stdlib for rapid prototyping before framework-specific implementation.
+- For high-energy physics: leverage domain executors (ColliderAgent, MadGraph5, Delphes) for simulation-based experiments; budget scaling applies to simulation steps.
+- For biology: use COBRApy for genome-scale metabolic modelling; scale reaction/enzyme conditions rather than trial seeds.
+- For statistics: use simulation-study patterns; scale by number of Monte Carlo replicates, reducing seeds when budget is tight.
+- For other domains (chemistry, materials): use generic Docker executor with domain-specific images; budget scaling is mandatory.
+```
 
-### `survey/SKILL.md`
-- **Add domain-aware search strategy:** Extend the literature search to include domain-specific sources (HEP: INSPIRE, Biology: PubMed, Statistics: arXiv stat.ML). Currently the survey skill appears to be generic.
+**Why:** AutoResearchClaw v0.5.0 added multi-domain experiment agents covering HEP, biology, and statistics. Without explicit scaling guidance for these domains, AutoAcad will default to ML-style seed reductions that are inappropriate for simulation-based domains. This addition keeps your package aligned with upstream capability without changing existing ML rules.
 
-### `plan/SKILL.md`
-- **Add HITL planning hooks:** Insert optional co-pilot review checkpoints after experiment design. Add reference codebase integration planning (which repositories to fork/adapt, which to reference only).
+### references/pipeline.md
 
-### `run/SKILL.md`
-- **Add multi-domain executor routing:** Document that run automatically selects executor based on domain tag (ML → numpy/stdlib, HEP → ColliderAgent/MadGraph5/Delphes, Biology → COBRApy, Statistics → simulation agent, Other → generic Docker executor). Add domain auto-detection logic documentation.
+**In the "Stage Groups" table, add a new group before "H. Finalization":**
 
-### `analyze/SKILL.md`
-- **Add domain-specific metric interpretations:** For HEP: cross-section significance, for Biology: flux balance analysis metrics, for Statistics: Monte Carlo standard errors. Currently only generic metrics are discussed.
+| Group | Stages | Goal |
+| --- | --- | --- |
+| I. External scrutiny | third-party review, rebuttal | Simulate harsh review and respond. |
 
-### `review/SKILL.md`
-- **Add anti-fabrication verification step:** Before final review, run claim-checking scripts (analogous to AutoResearchClaw's VerifiedRegistry). Add domain-specific review guidelines (e.g., for HEP: verify simulation parameters match detector specifications).
+**Why:** AutoResearchClaw's HITL system (v0.4.0) and AI-Researcher's automated result analysis both push toward an explicit external-review stage. Your pipeline currently ends at finalization. Adding this group makes the loop explicit (analysis → review → refine/pivot) and matches the upstream emphasis on stress-testing methodology-evidence consistency.
 
-### `export/SKILL.md`
-- **Add ARC-Bench compatibility check:** If the paper topic matches an ARC-Bench entry, add automatic rubric scoring and format validation. Add open-source contribution packaging (repository export with results, notebooks, and reproducibility artifacts).
+**In "Loop Points", add after "After analysis:":**
+
+```markdown
+- After rebuttal review: either refine experiments or restructure the paper.
+```
+
+**Why:** AI-Researcher's algorithm validation/refinement pattern requires a documented loop point after external scrutiny. Without this, reviewers who identify methodology gaps have no defined path back to experiment design.
+
+### references/restricts.md
+
+**Under "Topic Lock", add a subsection before "Evidence Discipline":**
+
+```markdown
+- **Hard Topic Constraint:** The paper MUST be about the specified topic.
+- **Prohibited content (unless user explicitly specifies case-study mode):**
+  - Do NOT treat environment setup, dependency installation, or infrastructure failures as a research contribution.
+  - Do NOT present debugging logs, system errors, or configuration issues as experimental findings.
+  - Do NOT drift to tangential topics not directly related to the stated topic.
+  - Every section MUST connect back to the core research question.
+  - The Abstract and Introduction MUST clearly state the research problem derived from the topic.
+  - The Method section MUST describe a technical approach, not a workflow.
+  - The Results section MUST report quantitative outcomes of experiments, not environment status.
+```
+
+**Why:** AutoResearchClaw's `topic_constraint` block (in `prompts.default.yaml`) explicitly lists these prohibitions. Your current `restricts.md` only says "Keep every section tied to the paper's actual research question" and "Do not present setup work...as research contributions." The upstream has much stronger, more specific guardrails against topic drift and infrastructure-as-contribution. This change aligns your hard constraints with theirs without changing the anti-fabrication rules you already have.
+
+### prepare/SKILL.md
+
+**Add to "Operating Rules" or "Input Requirements":**
+
+```markdown
+- If reference codebases are provided, verify they exist, have README files, and are compatible with Python 3.11+. Skip repositories that are archived, unmaintained, or have fewer than 10 stars unless domain-specific.
+- If no reference codebases are provided but reference papers are, search GitHub for matching repositories and evaluate at least 5 before selecting 2-4 for detailed review.
+```
+
+**Why:** AI-Researcher's preparation agent (`prepare_agent.py`) systematically evaluates GitHub repositories (stars, recency, README quality, code structure). AutoAcad's `prepare` stage currently has no guidance for repository evaluation. This addition lets the stage handle the reference-based ideation mode from AI-Researcher Level 2 ("I have some reference papers, please come up with an innovative idea...").
+
+---
 
 ## No-Change Areas
 
-### `references/paper-structure.md`
-The upstream packages do not specify a different paper structure. AutoAcad's section goals, word budgets, and core rules (Figure 1 planning, ablation requirements, comparable baseline tuning) remain aligned with best practices.
+The following files are already well-aligned with upstream structure and do not need updates:
 
-### `ideate/SKILL.md`
-The ideation stage in AutoAcad is already hypothesis-focused. Upstream packages (AutoResearchClaw) emphasize falsifiable hypotheses, which AutoAcad's current `ideate` stage appears to support. The upstream "Idea Workshop" from HITL mode is an optional enhancement, not a structural gap.
+- **references/paper-structure.md** — Your word budgets, section goals, and drafting order match or exceed what upstream provides. No change needed.
 
-### `draft/SKILL.md`
-AutoAcad's drafting guidance (outline → figure plan → method/experiments → results → introduction → abstract) matches upstream best practices. No changes needed unless domain-specific writing templates are added later.
+- **survey/SKILL.md** — No upstream changes to literature collection or screening methodology.
+
+- **ideate/SKILL.md** — Hypothesis generation patterns are stable across all three systems.
+
+- **plan/SKILL.md** — Experiment design requirements are already covered by your `experiment-rules.md` and `pipeline.md`.
+
+- **run/SKILL.md** — Experiment execution rules are handled by `experiment-rules.md`, which you are updating.
+
+- **analyze/SKILL.md** — Result analysis patterns are generic enough that no upstream-specific additions are needed.
+
+- **draft/SKILL.md** — Drafting instructions remain consistent across AutoResearchClaw and AI-Researcher.
+
+- **review/SKILL.md** — Review mechanics (methodology-evidence consistency, reviewer objections) are already encoded.
+
+- **export/SKILL.md** — Export formatting is a finalization step with no upstream changes.

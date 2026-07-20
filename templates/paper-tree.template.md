@@ -22,3 +22,4 @@ Notes:
 - `PROGRESS.md` is mandatory.
 - Put per-stage plans in `plans/`.
 - Save executable experiment code in `code/` and machine-readable outputs in `results/`.
+- FORBIDDEN FUNCTIONS in experiment code: subprocess, os.system, eval, exec, shutil, socket.

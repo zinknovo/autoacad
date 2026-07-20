@@ -37,6 +37,8 @@
 
 - Save machine-readable outputs in `results/`.
 - Keep enough metadata to reproduce the final table: seeds, configs, hardware, runtime, commit or version marker if available.
+- **Mandatory output format:** `main.py` must print metric lines as `name: value` (one per line) AND write a `results.json` file with structured experiment results (e.g. per-algorithm, per-function, per-dimension metrics as nested dicts/lists).
+- Use deterministic seeds (`numpy.random.seed` or `random.seed`).
 
 ## Code Anti-Patterns (for experiment code)
 
