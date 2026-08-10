@@ -26,6 +26,12 @@
 - When NaN or Inf appears, identify the source: learning rate, normalization, zero division, overflow, unstable log, and so on.
 - Do not hide instability with blanket `try/except`, `nan_to_num`, or silent clipping unless that is the actual documented method.
 
+## Convergence Metrics
+
+- If you report convergence_rate, define it as iterations_to_convergence / max_iterations or similar.
+- It MUST differ between algorithms. Do NOT return a constant or dummy value.
+- Measure actual iterations to convergence; never return hardcoded rates.
+
 ## NumPy 2.x Compatibility Notes
 
 - Use `np.trapezoid` instead of `np.trapz`.
@@ -46,7 +52,7 @@
 - Do NOT use `random.uniform()` to simulate a decreasing loss curve.
 - Do NOT hardcode metric values or use trivial arithmetic as metrics.
 - Do NOT run a fixed number of iterations without any convergence check.
-- Do NOT implement convergence_rate or similar metrics as dummy return values.
+- Do NOT implement convergence_rate or similar metrics as dummy return values (e.g. returning 1.0 or a constant).
 
 ## Domain-Specific Scaling Patterns
 
@@ -54,4 +60,14 @@
 - For high-energy physics: leverage domain executors (ColliderAgent, MadGraph5, Delphes) for simulation-based experiments; budget scaling applies to simulation steps.
 - For biology: use COBRApy for genome-scale metabolic modelling; scale reaction/enzyme conditions rather than trial seeds.
 - For statistics: use simulation-study patterns; scale by number of Monte Carlo replicates, reducing seeds when budget is tight.
-- For other domains (chemistry, materials): use generic Docker executor with domain-specific images; budget scaling is mandatory.
+- For chemistry and materials: use generic Docker executor with domain-specific images; budget scaling is mandatory.
+
+## Executor Selection
+
+- Auto-select the domain executor from the research domain when available:
+  - ML: sandbox with numpy/stdlib (no torch/tensorflow unless user requires).
+  - High-energy physics: ColliderAgent simulation chain (Langrangian → FeynRules → MadGraph5 → Delphes).
+  - Biology: COBRApy genome-scale metabolic modelling.
+  - Statistics: simulation-study agent.
+  - Chemistry/materials: generic Docker executor with domain-specific images.
+- If no domain executor applies, fall back to the ML sandbox or generic executor as appropriate.
