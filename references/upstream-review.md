@@ -2,100 +2,226 @@
 
 This file is generated automatically from upstream context plus local AutoAcad files.
 
-Reviewed AutoResearchClaw HEAD: `e2e23c93b4943fd21cc531deb09850d8fda55357`
+Reviewed AutoResearchClaw HEAD: `be4ba4755bf1b52220f25e13b2293b5956590070`
 Reviewed AI-Researcher HEAD: `f9a6f8480860c193afff600eeffe3defcee8a978`
+
+# Upstream Comparison Report: AutoAcad vs AutoResearchClaw & AI-Researcher
 
 ## Summary
 
-The upstream systems (AutoResearchClaw and AI-Researcher) have evolved in several important ways that your local AutoAcad package should track. AutoResearchClaw v0.5.0 introduces multi-domain experiment agents (HEP, biology, statistics) and the ARC-Bench benchmark (55 topics), while AI-Researcher adds a reference-codebase-driven preparation phase and automated algorithm validation/refinement. However, AutoAcad already has strong scaffolding for these concepts. The updates needed are incremental—primarily adding domain-specific executor routing to `experiment-rules.md` and aligning `pipeline.md` with the new upstream stage structures—not a full rewrite.
-
----
+AutoAcad's local package is already well-aligned with both upstream projects in several core areas (evidence discipline, compute budget scaling, anti-fabrication rules). The main gaps are: (1) missing executor selection guidance for domain-specific experiments (HEP, biology, chemistry), (2) no explicit `results.json` output requirement across all stages, and (3) the `ideate` and `plan` stages lack upstream's structured hypothesis-generation and experiment-design YAML requirements. Additionally, the `prepare` stage should incorporate AI-Researcher's reference-codebase evaluation criteria (stars, recency, README quality) and the `export` stage should align with upstream's final formatting requirements.
 
 ## Recommended File Updates
 
-### references/experiment-rules.md
+---
 
-**Add a new top-level section before "Code Anti-Patterns":**
+### `references/pipeline.md`
+
+**Add Executor Selection Section (from AutoResearchClaw v0.5.0)**
+
+Append after the "Loop Points" section:
 
 ```markdown
-## Domain-Specific Scaling Patterns
+## Executor Selection
 
-- For ML experiments (default): follow the budget-scaling rules above; use numpy/stdlib for rapid prototyping before framework-specific implementation.
+Auto-select the domain executor from the research domain when available:
+- ML: sandbox with numpy/stdlib (no torch/tensorflow unless user requires)
+- High-energy physics: ColliderAgent simulation chain (Lagrangian → FeynRules → MadGraph5 → Delphes)
+- Biology: COBRApy genome-scale metabolic modelling
+- Statistics: simulation-study agent
+- Chemistry/materials: generic Docker executor with domain-specific images
+- If no domain executor applies, fall back to the ML sandbox or generic executor
+
+Record executor choice in PROGRESS.md alongside experiment metadata.
+```
+
+---
+
+### `references/experiment-rules.md`
+
+**Add Domain-Specific Scaling Patterns (from AutoResearchClaw v0.5.0)**
+
+Append to the existing "Domain-Specific Scaling Patterns" section:
+
+```markdown
 - For high-energy physics: leverage domain executors (ColliderAgent, MadGraph5, Delphes) for simulation-based experiments; budget scaling applies to simulation steps.
 - For biology: use COBRApy for genome-scale metabolic modelling; scale reaction/enzyme conditions rather than trial seeds.
 - For statistics: use simulation-study patterns; scale by number of Monte Carlo replicates, reducing seeds when budget is tight.
-- For other domains (chemistry, materials): use generic Docker executor with domain-specific images; budget scaling is mandatory.
+- For chemistry and materials: use generic Docker executor with domain-specific images; budget scaling is mandatory.
 ```
 
-**Why:** AutoResearchClaw v0.5.0 added multi-domain experiment agents covering HEP, biology, and statistics. Without explicit scaling guidance for these domains, AutoAcad will default to ML-style seed reductions that are inappropriate for simulation-based domains. This addition keeps your package aligned with upstream capability without changing existing ML rules.
+**Strengthen Results-saving Requirement (from AutoResearchClaw prompts)**
 
-### references/pipeline.md
-
-**In the "Stage Groups" table, add a new group before "H. Finalization":**
-
-| Group | Stages | Goal |
-| --- | --- | --- |
-| I. External scrutiny | third-party review, rebuttal | Simulate harsh review and respond. |
-
-**Why:** AutoResearchClaw's HITL system (v0.4.0) and AI-Researcher's automated result analysis both push toward an explicit external-review stage. Your pipeline currently ends at finalization. Adding this group makes the loop explicit (analysis → review → refine/pivot) and matches the upstream emphasis on stress-testing methodology-evidence consistency.
-
-**In "Loop Points", add after "After analysis:":**
+Modify the "Result Saving" section to match upstream's mandatory format:
 
 ```markdown
-- After rebuttal review: either refine experiments or restructure the paper.
+- **Mandatory output format:** `main.py` must print metric lines as `name: value` (one per line) AND write a `results.json` file with structured experiment results (e.g. per-algorithm, per-function, per-dimension metrics as nested dicts/lists).
 ```
 
-**Why:** AI-Researcher's algorithm validation/refinement pattern requires a documented loop point after external scrutiny. Without this, reviewers who identify methodology gaps have no defined path back to experiment design.
+*Current text says "Save machine-readable outputs in `results/`" without specifying the required format — align with upstream.*
 
-### references/restricts.md
+---
 
-**Under "Topic Lock", add a subsection before "Evidence Discipline":**
+### `references/restricts.md`
+
+**Add Code Anti-Patterns Detail (from AutoResearchClaw prompts.default.yaml)**
+
+Expand the "Code Generation Rules" section to explicitly include:
 
 ```markdown
-- **Hard Topic Constraint:** The paper MUST be about the specified topic.
-- **Prohibited content (unless user explicitly specifies case-study mode):**
-  - Do NOT treat environment setup, dependency installation, or infrastructure failures as a research contribution.
-  - Do NOT present debugging logs, system errors, or configuration issues as experimental findings.
-  - Do NOT drift to tangential topics not directly related to the stated topic.
-  - Every section MUST connect back to the core research question.
-  - The Abstract and Introduction MUST clearly state the research problem derived from the topic.
-  - The Method section MUST describe a technical approach, not a workflow.
-  - The Results section MUST report quantitative outcomes of experiments, not environment status.
+- FORBIDDEN: subprocess, os.system, eval, exec, shutil, socket
+- If you report convergence_rate, define it as iterations_to_convergence / max_iterations — it MUST differ between algorithms
+- Do NOT run a fixed number of iterations without any convergence check
+- Do NOT use `random.uniform()` to simulate a decreasing loss curve
 ```
 
-**Why:** AutoResearchClaw's `topic_constraint` block (in `prompts.default.yaml`) explicitly lists these prohibitions. Your current `restricts.md` only says "Keep every section tied to the paper's actual research question" and "Do not present setup work...as research contributions." The upstream has much stronger, more specific guardrails against topic drift and infrastructure-as-contribution. This change aligns your hard constraints with theirs without changing the anti-fabrication rules you already have.
+*Current text has these but they're scattered — consolidate into a single `### Code Anti-Patterns` block following upstream's explicit list.*
 
-### prepare/SKILL.md
+---
 
-**Add to "Operating Rules" or "Input Requirements":**
+### `prepare/SKILL.md`
+
+**Add Reference Codebase Evaluation Criteria (from AI-Researcher prepare_agent.py)**
+
+Add a "Reference Selection Criteria" section:
 
 ```markdown
-- If reference codebases are provided, verify they exist, have README files, and are compatible with Python 3.11+. Skip repositories that are archived, unmaintained, or have fewer than 10 stars unless domain-specific.
-- If no reference codebases are provided but reference papers are, search GitHub for matching repositories and evaluate at least 5 before selecting 2-4 for detailed review.
+## Reference Codebase Selection Criteria
+
+When identifying reference codebases during preparation:
+1. Repositories with more stars are more recommended.
+2. Repositories created more recently are more recommended; [IMPORTANT] too old repositories are not recommended.
+3. More detailed `README.md` files mean more readable codebases and more reproducible, so more recommended.
+4. More clear code structure, code comments, and inline code explanations mean more readable and maintainable, so more recommended.
+5. Prefer repositories with `python` language and local-machine execution over Docker; prefer `pytorch` framework for deep learning projects.
+
+Select at least 5 reference codebases. The decision should be as accurate as possible, with as few repositories as needed.
 ```
 
-**Why:** AI-Researcher's preparation agent (`prepare_agent.py`) systematically evaluates GitHub repositories (stars, recency, README quality, code structure). AutoAcad's `prepare` stage currently has no guidance for repository evaluation. This addition lets the stage handle the reference-based ideation mode from AI-Researcher Level 2 ("I have some reference papers, please come up with an innovative idea...").
+---
+
+### `ideate/SKILL.md`
+
+**Add Hypothesis Generation Requirements (from AutoResearchClaw prompts.default.yaml)**
+
+Strengthen the ideation stage with falsifiability structure:
+
+```markdown
+## Hypothesis Requirements
+
+Generate at least 2 falsifiable hypotheses from synthesis.
+For each hypothesis, provide:
+- Rationale
+- Measurable prediction
+- Failure condition
+
+Format as structured markdown. Hypotheses MUST be testable against the experiment design from the plan stage.
+```
+
+---
+
+### `plan/SKILL.md`
+
+**Add Experiment Design YAML Requirements (from AutoResearchClaw prompts.default.yaml)**
+
+Update the planning stage to require structured output:
+
+```markdown
+## Experiment Plan Format
+
+Design an experiment plan as YAML with these required keys:
+- objectives
+- datasets
+- baselines
+- proposed_methods
+- ablations
+- metrics
+- risks
+- compute_budget
+```
+
+---
+
+### `run/SKILL.md`
+
+**Add Code Generation Requirements (from AutoResearchClaw prompts.default.yaml)**
+
+Strengthen the run stage with upstream's code-generation constraints:
+
+```markdown
+## Code Generation Rules
+
+When generating experiment code:
+1. Implement REAL algorithms (e.g., gradient descent, Adam, SGD) using numpy arrays — NOT `random.uniform()` loops that fake results.
+2. Define REAL objective/loss functions (e.g., Rosenbrock, quadratic, cross-entropy on synthetic data) with proper mathematical formulas.
+3. Run REAL optimization loops that compute gradients and update parameters.
+4. Collect REAL metrics (loss values, convergence rates) from actual optimization.
+5. Use convergence stopping criteria (stop when objective change < 1e-8 for N consecutive iterations) — do NOT run fixed iteration counts.
+6. `main.py` must print metric lines as `name: value` (one per line) AND write a `results.json` file with structured experiment results.
+7. Use deterministic seeds (`numpy.random.seed` or `random.seed`).
+```
+
+---
+
+### `export/SKILL.md`
+
+**Add Publication Formatting Requirements (from AutoResearchClaw prompts.default.yaml)**
+
+Align export with upstream formatting expectations:
+
+```markdown
+## Formatting Requirements
+
+- Format revised paper into clean final markdown for publication export.
+- Preserve content quality and readability.
+- Ensure numeric claims match `results.json` exactly — run `check_results_vs_claims.py` before export.
+- Verify all citations resolve to real papers (DOI, arXiv ID, URL).
+```
+
+---
+
+### `draft/SKILL.md`
+
+**Add Figure 1 Planning Requirement (from AutoResearchClaw paper-structure guidance)**
+
+Strengthen the drafting stage with upstream's figure-first discipline:
+
+```markdown
+## Drafting Discipline
+
+- Figure 1 must be planned before full drafting
+- Every effective component mentioned in the paper needs an ablation
+- Baselines must receive comparable tuning effort
+- Citations must support claims, not decorate them
+```
+
+*Current `references/paper-structure.md` already has these — ensure draft/SKILL.md references it explicitly.*
 
 ---
 
 ## No-Change Areas
 
-The following files are already well-aligned with upstream structure and do not need updates:
+The following files/sections already meet or exceed upstream standards and require no updates:
 
-- **references/paper-structure.md** — Your word budgets, section goals, and drafting order match or exceed what upstream provides. No change needed.
+| File/Area | Reason |
+|-----------|--------|
+| **`references/experiment-rules.md` — Pilot and Time Budget** | Already contains all mandatory scaling rules, time estimates, and guard logic from AutoResearchClaw. |
+| **`references/restricts.md` — Topic Lock & Anti-Fabrication** | Fully aligned with upstream's hard constraints; includes additional NumPy 2.x compatibility rules. |
+| **Overall SKILL.md — Compute Budget Rules** | Already matches upstream's budget-scaling guidance (reduce seeds, limit steps, time guard). |
+| **Stage routing table** | Correctly maps all 9 AutoAcad stages to upstream's 25-stage pipeline; no routing gaps. |
+| **`review/SKILL.md`** | No upstream-specific requirements; AutoAcad's review stage already covers evidence-consistency checking and reviewer simulation beyond upstream. |
+| **`analyze/SKILL.md`** | Upstream doesn't specify unique analyze-stage requirements beyond what AutoAcad already implements (proceed/refine/pivot decisions). |
+| **`survey/SKILL.md`** | Already aligned with upstream's literature collection and screening requirements. |
+| **`references/paper-structure.md`** | Already includes upstream's section budgets and quality gates; no changes needed. |
 
-- **survey/SKILL.md** — No upstream changes to literature collection or screening methodology.
+---
 
-- **ideate/SKILL.md** — Hypothesis generation patterns are stable across all three systems.
+## Implementation Priority
 
-- **plan/SKILL.md** — Experiment design requirements are already covered by your `experiment-rules.md` and `pipeline.md`.
-
-- **run/SKILL.md** — Experiment execution rules are handled by `experiment-rules.md`, which you are updating.
-
-- **analyze/SKILL.md** — Result analysis patterns are generic enough that no upstream-specific additions are needed.
-
-- **draft/SKILL.md** — Drafting instructions remain consistent across AutoResearchClaw and AI-Researcher.
-
-- **review/SKILL.md** — Review mechanics (methodology-evidence consistency, reviewer objections) are already encoded.
-
-- **export/SKILL.md** — Export formatting is a finalization step with no upstream changes.
+Implement changes in this order:
+1. **`references/experiment-rules.md`** — Add mandatory `results.json` format (critical for reproducibility)
+2. **`references/pipeline.md`** — Add executor selection (needed by run stage)
+3. **`prepare/SKILL.md`** — Add reference codebase criteria (foundational for project setup)
+4. **`ideate/SKILL.md`** and **`plan/SKILL.md`** — Add structured hypothesis/experiment-plan formats
+5. **`run/SKILL.md`** — Strengthen code generation rules
+6. **`export/SKILL.md`** and **`draft/SKILL.md`** — Final alignment with upstream formatting
