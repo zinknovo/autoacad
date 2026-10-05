@@ -54,20 +54,8 @@
 - Do NOT run a fixed number of iterations without any convergence check.
 - Do NOT implement convergence_rate or similar metrics as dummy return values (e.g. returning 1.0 or a constant).
 
-## Domain-Specific Scaling Patterns
+## Domain Executor Selection
 
-- For ML experiments (default): follow the budget-scaling rules above; use numpy/stdlib for rapid prototyping before framework-specific implementation.
-- For high-energy physics: leverage domain executors (ColliderAgent, MadGraph5, Delphes) for simulation-based experiments; budget scaling applies to simulation steps.
-- For biology: use COBRApy for genome-scale metabolic modelling; scale reaction/enzyme conditions rather than trial seeds.
-- For statistics: use simulation-study patterns; scale by number of Monte Carlo replicates, reducing seeds when budget is tight.
-- For chemistry and materials: use generic Docker executor with domain-specific images; budget scaling is mandatory.
-
-## Executor Selection
-
-- Auto-select the domain executor from the research domain when available:
-  - ML: sandbox with numpy/stdlib (no torch/tensorflow unless user requires).
-  - High-energy physics: ColliderAgent simulation chain (Langrangian → FeynRules → MadGraph5 → Delphes).
-  - Biology: COBRApy genome-scale metabolic modelling.
-  - Statistics: simulation-study agent.
-  - Chemistry/materials: generic Docker executor with domain-specific images.
-- If no domain executor applies, fall back to the ML sandbox or generic executor as appropriate.
+- Executor choice is separate from budget scaling: pick the domain executor first, then apply the scaling rules above to its iteration budget.
+- See `domain-executor.md` for the per-domain routing table imported from AutoResearchClaw v0.5.0.
+- If no domain executor applies, fall back to the ML sandbox with numpy/stdlib.
