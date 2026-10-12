@@ -22,7 +22,9 @@ AutoAcad does not store those as one giant prompt. It splits them into stable la
 | stage list, gate points, refine/pivot loops | `references/pipeline.md` |
 | anti-fabrication rules, topic lock, evidence discipline | `references/restricts.md` |
 | pilot timing, convergence, NaN/Inf handling, compute scaling | `references/experiment-rules.md` |
+| per-domain experiment executor routing | `references/domain-executor.md` |
 | section lengths, figure strategy, ablation and baseline expectations | `references/paper-structure.md` |
+| reference codebase selection during prepare | `references/prepare-reference-selection.md` |
 | project tree, `PROGRESS.md`, `plans/`, `results/` shape | `templates/paper-tree.template.md`, `templates/PROGRESS.template.md`, `templates/stage-plan.template.md` |
 | project bootstrapping behavior | `scripts/init_paper_project.py` |
 | artifact existence checks | `scripts/check_stage_outputs.py` |
@@ -49,6 +51,12 @@ AutoAcad does not store those as one giant prompt. It splits them into stable la
 - Require printed time estimation before long jobs.
 - Require real convergence logic and root-cause fixes for NaN/Inf.
 - Require reproducible structured results.
+- Route by research domain to a domain executor, then apply compute-budget scaling to that executor's iteration budget.
+
+### Prepare
+
+- When the idea requires reference codebases, select them via `references/prepare-reference-selection.md` (imported from AI-Researcher `prepare_agent`).
+- Record `reference_codebases`, `reference_paths`, and `reference_papers` in `PROGRESS.md`; downstream stages read from there.
 
 ### Paper Discipline
 
@@ -64,5 +72,6 @@ AutoAcad does not store those as one giant prompt. It splits them into stable la
 - hardcoded venue placeholders
 - tool names that only make sense in another runtime
 - workflow text that duplicates what a subskill already says
+- cloud infrastructure and benchmark manifests (e.g. Magnus cloud, ARC-Bench rubrics)
 
 Those items were converted into smaller files so AutoAcad can evolve without becoming one huge brittle prompt.
