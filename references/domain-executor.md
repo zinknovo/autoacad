@@ -24,7 +24,14 @@ Imported from AutoResearchClaw v0.5.0 (multi-domain experiment agents + ARC-Benc
 - Record `executor`, `executor_reason`, and the applied scaling rule in `PROGRESS.md` under the `experiment-run` entry.
 - Save domain-specific logs (MadGraph output, COBRApy JSON, Docker container logs) under `results/<domain>/` alongside the standard `results.json`.
 
+## Domain Coverage Note
+
+- Upstream ARC-Bench spans ML (25), HEP (10), quantum (10), biology (7), statistics (3).
+- Quantum has no dedicated row above; treat it as a generic Docker executor case unless the user names a specific simulator.
+
 ## What AutoAcad Does Not Import
 
 - Cloud-specific infrastructure (e.g. Magnus cloud) — substitute local or user-provided compute.
 - ARC-Bench manifests and rubrics — those live upstream; use them only if the user explicitly wants benchmark replication.
+- HITL co-pilot intervention modes (v0.4.0) — model as ordinary user check-ins at gates instead.
+- `researchclaw skills install` and the upstream pre-loaded skills library — AutoAcad's own skill bundle is the source of truth.

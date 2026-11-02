@@ -51,7 +51,7 @@ AutoAcad does not store those as one giant prompt. It splits them into stable la
 - Require printed time estimation before long jobs.
 - Require real convergence logic and root-cause fixes for NaN/Inf.
 - Require reproducible structured results.
-- Route by research domain to a domain executor, then apply compute-budget scaling to that executor's iteration budget.
+- Route by research domain to a domain executor, then apply compute-budget scaling to that executor's iteration budget (see `references/domain-executor.md`, `references/experiment-rules.md`).
 
 ### Prepare
 
@@ -73,5 +73,7 @@ AutoAcad does not store those as one giant prompt. It splits them into stable la
 - tool names that only make sense in another runtime
 - workflow text that duplicates what a subskill already says
 - cloud infrastructure and benchmark manifests (e.g. Magnus cloud, ARC-Bench rubrics)
+- HITL co-pilot intervention-mode machinery — map it to ordinary gate check-ins
+- the upstream skills library / `skills install` flow — AutoAcad is itself the skill bundle
 
 Those items were converted into smaller files so AutoAcad can evolve without becoming one huge brittle prompt.
