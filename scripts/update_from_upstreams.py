@@ -280,8 +280,13 @@ def extract_relevant_upstream_context(auto_repo: Path, ai_repo: Path) -> str:
     return "\n\n".join(parts)
 
 
+#: DeepSeek models that take the `thinking` field: the current `deepseek-flash` and
+#: `deepseek-v4-pro`, plus the retired `deepseek-v4-flash` names the API still routes to Flash.
+DEEPSEEK_THINKING_PREFIXES = ("deepseek-flash", "deepseek-v4")
+
+
 def maybe_add_deepseek_options(body: dict, api_base: str, model: str) -> None:
-    if "api.deepseek.com" not in api_base or not model.startswith("deepseek-v4"):
+    if "api.deepseek.com" not in api_base or not model.startswith(DEEPSEEK_THINKING_PREFIXES):
         return
     thinking_type = (
         os.environ.get("OPENAI_THINKING_TYPE")

@@ -1,8 +1,10 @@
 import importlib.util
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "update_from_upstreams.py"
@@ -103,6 +105,32 @@ class LocalSummaryTests(unittest.TestCase):
             self.assertIn("pipeline.md", joined)
             self.assertNotIn("upstreams.md", joined)
             self.assertNotIn("upstream-review.md", joined)
+
+
+class DeepSeekOptionsTests(unittest.TestCase):
+    def setUp(self) -> None:
+        patcher = mock.patch.dict(os.environ)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        for key in ("OPENAI_THINKING_TYPE", "LLM_THINKING_TYPE"):
+            os.environ.pop(key, None)
+
+    def options_for(self, model: str, api_base: str = "https://api.deepseek.com") -> dict:
+        body: dict = {}
+        MODULE.maybe_add_deepseek_options(body, api_base, model)
+        return body
+
+    def test_current_flash_name_gets_thinking_disabled(self) -> None:
+        self.assertEqual(self.options_for("deepseek-flash"), {"thinking": {"type": "disabled"}})
+
+    def test_retired_v4_flash_name_still_gets_thinking_disabled(self) -> None:
+        self.assertEqual(self.options_for("deepseek-v4-flash"), {"thinking": {"type": "disabled"}})
+
+    def test_model_outside_the_thinking_family_is_left_alone(self) -> None:
+        self.assertEqual(self.options_for("deepseek-chat"), {})
+
+    def test_other_endpoints_are_left_alone(self) -> None:
+        self.assertEqual(self.options_for("deepseek-flash", "https://api.openai.com/v1"), {})
 
 
 if __name__ == "__main__":
